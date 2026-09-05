@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e2a3f">
 <title>Цветной прилив</title>
+<!-- Относительный путь: после загрузки в консоль разработчика Yandex Games
+     раздаёт файл именно по этому URL. Локально запрос на него просто
+     не найдёт файл и SDK останется не определён — это ожидаемо (см. фоллбэк). -->
+<script src="/sdk.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
 
@@ -357,6 +361,13 @@
     <div class="board-wrap">
       <div class="board" id="board"></div>
 
+      <div class="overlay" id="loadingOverlay">
+        <div class="panel">
+          <h2>Цветной прилив</h2>
+          <p class="sub" id="loadingText">Загрузка…</p>
+        </div>
+      </div>
+
       <div class="overlay" id="pauseOverlay" hidden>
         <div class="panel">
           <h2>Пауза</h2>
@@ -386,14 +397,82 @@
 (function () {
   "use strict";
 
-  /* ============ Точки интеграции Yandex Games SDK ============
-     Здесь заглушки для полноэкранной и вознаграждаемой рекламы.
-     При интеграции: window.YaGames.init().then(ysdk => {...}) и
-     заменить тела Ads.interstitial / Ads.rewarded на вызовы
-     ysdk.adv.showFullscreenAdv / ysdk.adv.showRewardedVideo. */
+  /* ============ Yandex Games SDK ============ */
+  let ysdk = null;
+  let player = null;
+
+  const LOCAL_PROGRESS_KEY = "color-tide-progress-v1";
+
+  const Progress = {
+    data: { currentLevel: 0, bestScore: 0, levelsCompleted: 0 },
+
+    async load() {
+      if (player) {
+        try {
+          const remote = await player.getData(["currentLevel", "bestScore", "levelsCompleted"]);
+          Object.assign(this.data, remote);
+          return;
+        } catch (e) {
+          // Cloud read failed (offline, etc.) — fall through to local copy below.
+        }
+      }
+      try {
+        const raw = localStorage.getItem(LOCAL_PROGRESS_KEY);
+        if (raw) Object.assign(this.data, JSON.parse(raw));
+      } catch (e) {}
+    },
+
+    save() {
+      if (player) {
+        // `true` flushes immediately instead of batching — we only call
+        // save() at level boundaries, not on every move, so this is rare.
+        player.setData(this.data, true).catch(() => {});
+        return;
+      }
+      try {
+        localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(this.data));
+      } catch (e) {}
+    },
+
+    recordLevelStart(levelIndex) {
+      this.data.currentLevel = levelIndex;
+      this.save();
+    },
+
+    recordLevelEnd(levelIndex, score, won) {
+      this.data.bestScore = Math.max(this.data.bestScore, score);
+      if (won) this.data.levelsCompleted = Math.max(this.data.levelsCompleted, levelIndex + 1);
+      this.save();
+    },
+  };
+
   const Ads = {
-    interstitial(onDone) { onDone(); },
-    rewarded(onReward) { onReward(true); },
+    interstitial(onDone) {
+      if (ysdk && ysdk.adv) {
+        ysdk.adv.showFullscreenAdv({
+          callbacks: {
+            onClose: () => onDone(),
+            onError: () => onDone(),
+          },
+        });
+      } else {
+        onDone();
+      }
+    },
+    rewarded(onReward) {
+      if (ysdk && ysdk.adv) {
+        let wasRewarded = false;
+        ysdk.adv.showRewardedVideo({
+          callbacks: {
+            onRewarded: () => { wasRewarded = true; },
+            onClose: () => onReward(wasRewarded),
+            onError: () => onReward(false),
+          },
+        });
+      } else {
+        onReward(true);
+      }
+    },
   };
 
   const GRID_SIZE = 8;
@@ -410,6 +489,8 @@
   ];
 
   const boardEl = document.getElementById("board");
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  const loadingText = document.getElementById("loadingText");
   const levelValueEl = document.getElementById("levelValue");
   const scoreValueEl = document.getElementById("scoreValue");
   const movesValueEl = document.getElementById("movesValue");
@@ -713,6 +794,7 @@
   }
 
   function showEnd(won) {
+    Progress.recordLevelEnd(state.levelIndex, state.score, won);
     endOverlay.hidden = false;
     endScoreEl.textContent = state.score;
     const isLastLevel = state.levelIndex >= LEVELS.length - 1;
@@ -730,6 +812,7 @@
   }
 
   function startLevel(levelIndex) {
+    Progress.recordLevelStart(levelIndex);
     clearBoardDOM();
     state = newGameState(levelIndex);
     levelValueEl.textContent = levelIndex + 1;
@@ -800,7 +883,43 @@
   window.addEventListener("resize", recalcCellSize);
   window.addEventListener("orientationchange", recalcCellSize);
 
-  startLevel(0);
+  async function initSDK() {
+    if (typeof YaGames === "undefined") return;
+    try {
+      ysdk = await YaGames.init();
+      try {
+        // scopes: false skips the personal-data consent prompt — we only
+        // need get/setData for save slots, not the player's name or avatar.
+        player = await ysdk.getPlayer({ scopes: false });
+      } catch (e) {
+        player = null;
+      }
+    } catch (e) {
+      ysdk = null;
+    }
+  }
+
+  async function boot() {
+    await initSDK();
+    await Progress.load();
+    loadingOverlay.hidden = true;
+    startLevel(Progress.data.currentLevel || 0);
+    // Tells the Yandex Games platform the loading screen can be dismissed
+    // and the game is playable. Required by the platform even though it
+    // has no local fallback effect (YaGames is undefined outside it).
+    if (ysdk && ysdk.features && ysdk.features.LoadingAPI) {
+      ysdk.features.LoadingAPI.ready();
+    }
+  }
+
+  boot().catch(() => {
+    // Whatever went wrong with the SDK, the game must still be playable.
+    loadingText.textContent = "Не удалось связаться с Яндекс Играми, играем локально…";
+    setTimeout(() => {
+      loadingOverlay.hidden = true;
+      startLevel(0);
+    }, 900);
+  });
 })();
 </script>
 </body>
