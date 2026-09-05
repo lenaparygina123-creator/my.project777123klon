@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e2a3f">
+<title>Цветной прилив</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --sky-top: #bdeeff;
+    --sky-bottom: #eafdf3;
+    --panel: #fef6e4;
+    --panel-edge: #f3dfb0;
+    --ink: #12384f;
+    --ink-soft: #4d7386;
+    --accent: #ff6b6b;
+    --accent-ink: #7a1f1f;
+    --good: #2fae7e;
+    --board-well: #0e5a78;
+
+    --c-red: #ff6b6b;
+    --c-yellow: #ffd93d;
+    --c-green: #4ecb8f;
+    --c-blue: #4d96ff;
+    --c-purple: #b47eea;
+    --c-orange: #ff9f5b;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  body {
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 62%, #d8f6e4 100%);
+    color: var(--ink);
+    font-family: "Nunito", -apple-system, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 560px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: max(10px, env(safe-area-inset-top)) 14px max(10px, env(safe-area-inset-bottom));
+    position: relative;
+  }
+
+  h1, h2, h3 { font-family: "Baloo 2", "Nunito", sans-serif; text-wrap: balance; margin: 0; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    background: var(--panel);
+    border: 2px solid var(--panel-edge);
+    border-radius: 14px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    box-shadow: 0 2px 0 var(--panel-edge);
+  }
+
+  .chip .label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+  }
+
+  .chip .value {
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  .chip.moves.low .value { color: var(--accent-ink); }
+
+  .pause-btn {
+    margin-left: auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 2px solid var(--panel-edge);
+    background: var(--panel);
+    color: var(--ink);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 0 var(--panel-edge);
+  }
+  .pause-btn:active { transform: translateY(1px); box-shadow: none; }
+  .pause-btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+  /* ---------- Goal banner ---------- */
+  .goal-banner {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.55);
+    border: 2px dashed var(--panel-edge);
+    border-radius: 14px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: center;
+  }
+
+  .goal-banner .lvl {
+    color: var(--ink-soft);
+    font-weight: 800;
+    font-family: "Baloo 2", sans-serif;
+    margin-right: 6px;
+  }
+
+  /* ---------- Board ---------- */
+  .board-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 10px 0;
+  }
+
+  .board-wrap {
+    width: min(100%, calc(100vh - 210px));
+    aspect-ratio: 1 / 1;
+    max-width: 480px;
+    background: var(--board-well);
+    border-radius: 18px;
+    padding: 8px;
+    box-shadow:
+      inset 0 0 0 3px rgba(255,255,255,0.15),
+      0 10px 24px rgba(10, 50, 70, 0.35);
+    position: relative;
+  }
+
+  .board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .cell-bg {
+    position: absolute;
+    background: rgba(255,255,255,0.05);
+    outline: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .tile {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: top 260ms cubic-bezier(.4,.2,.2,1), left 260ms cubic-bezier(.4,.2,.2,1),
+                transform 180ms ease, opacity 180ms ease;
+    will-change: top, left, transform, opacity;
+  }
+
+  .tile-body {
+    width: 84%;
+    height: 84%;
+    border-radius: 30%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12), inset 0 3px 0 rgba(255,255,255,0.35);
+    transition: transform 140ms ease;
+  }
+
+  .tile:hover .tile-body { transform: scale(1.06); }
+  .tile:active .tile-body { transform: scale(0.92); }
+
+  .tile-icon {
+    font-size: 46%;
+    opacity: 0.4;
+    color: rgba(0,0,0,0.55);
+    line-height: 1;
+    user-select: none;
+  }
+
+  .tile[data-color="red"]    .tile-body { background: var(--c-red); }
+  .tile[data-color="yellow"] .tile-body { background: var(--c-yellow); }
+  .tile[data-color="green"]  .tile-body { background: var(--c-green); }
+  .tile[data-color="blue"]   .tile-body { background: var(--c-blue); }
+  .tile[data-color="purple"] .tile-body { background: var(--c-purple); }
+  .tile[data-color="orange"] .tile-body { background: var(--c-orange); }
+
+  .tile.golden .tile-body {
+    background: radial-gradient(circle at 35% 30%, #fffbe0, #ffd76e 55%, #f2ac1e 100%);
+    box-shadow: 0 0 0 3px rgba(255,231,140,0.7), 0 0 14px 4px rgba(255, 210, 90, 0.65),
+                inset 0 -4px 0 rgba(150,100,0,0.2), inset 0 3px 0 rgba(255,255,255,0.6);
+    animation: golden-pulse 1.4s ease-in-out infinite;
+  }
+  .tile.golden .tile-icon { content: none; opacity: 0; }
+
+  @keyframes golden-pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.18); }
+  }
+
+  .tile.removing .tile-body {
+    transform: scale(0.15);
+    opacity: 0;
+  }
+  .tile.removing { pointer-events: none; }
+
+  .tile.shake .tile-body {
+    animation: shake-anim 320ms ease;
+  }
+
+  @keyframes shake-anim {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px) rotate(-4deg); }
+    40% { transform: translateX(5px) rotate(3deg); }
+    60% { transform: translateX(-4px) rotate(-2deg); }
+    80% { transform: translateX(3px) rotate(2deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile { transition: opacity 120ms ease; }
+    .tile.golden .tile-body { animation: none; }
+    .tile.shake .tile-body { animation: none; }
+  }
+
+  /* ---------- Footer hint ---------- */
+  .hint {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+    padding-top: 6px;
+    font-weight: 600;
+  }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 35, 50, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 10;
+  }
+  .overlay[hidden] { display: none; }
+
+  .panel {
+    background: var(--panel);
+    border: 3px solid var(--panel-edge);
+    border-radius: 22px;
+    padding: 24px 22px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.25);
+  }
+
+  .panel h2 {
+    font-size: 26px;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .panel .sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  .panel .score-line {
+    font-family: "Baloo 2", sans-serif;
+    font-size: 34px;
+    font-weight: 800;
+    color: var(--good);
+    margin-bottom: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    padding: 13px 16px;
+    font-family: "Baloo 2", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  .btn.primary { background: var(--good); color: #fff; box-shadow: 0 4px 0 #1f7f5b; }
+  .btn.primary:active { transform: translateY(3px); box-shadow: none; }
+
+  .btn.secondary { background: #fff; color: var(--ink); border: 2px solid var(--panel-edge); box-shadow: 0 3px 0 var(--panel-edge); }
+  .btn.secondary:active { transform: translateY(2px); box-shadow: none; }
+
+  .btn.ghost { background: transparent; color: var(--ink-soft); box-shadow: none; font-size: 13px; padding: 8px; }
+
+  .btn:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+  @media (max-height: 640px) {
+    .goal-banner { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="chip">
+      <span class="label">Ур.</span>
+      <span class="value" id="levelValue">1</span>
+    </div>
+    <div class="chip">
+      <span class="label">Очки</span>
+      <span class="value" id="scoreValue">0</span>
+    </div>
+    <div class="chip moves" id="movesChip">
+      <span class="label">Ходы</span>
+      <span class="value" id="movesValue">20</span>
+    </div>
+    <button class="pause-btn" id="pauseBtn" type="button" aria-label="Пауза">II</button>
+  </div>
+
+  <div class="goal-banner" id="goalBanner"></div>
+
+  <div class="board-stage">
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+
+      <div class="overlay" id="pauseOverlay" hidden>
+        <div class="panel">
+          <h2>Пауза</h2>
+          <p class="sub">Уровень <span id="pauseLevel">1</span> · Очки: <span id="pauseScore">0</span></p>
+          <button class="btn primary" id="resumeBtn" type="button">Продолжить</button>
+          <button class="btn secondary" id="restartFromPauseBtn" type="button">Начать уровень заново</button>
+        </div>
+      </div>
+
+      <div class="overlay" id="endOverlay" hidden>
+        <div class="panel">
+          <h2 id="endTitle">Уровень пройден!</h2>
+          <p class="sub" id="endSub">Цель достигнута</p>
+          <div class="score-line" id="endScore">0</div>
+          <button class="btn primary" id="nextLevelBtn" type="button">Следующий уровень</button>
+          <button class="btn secondary" id="extraMovesBtn" type="button">+5 ходов (реклама)</button>
+          <button class="btn secondary" id="retryBtn" type="button">Играть снова</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">Соедините 3+ плитки одного цвета — золотая плитка красит соседей</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============ Точки интеграции Yandex Games SDK ============
+     Здесь заглушки для полноэкранной и вознаграждаемой рекламы.
+     При интеграции: window.YaGames.init().then(ysdk => {...}) и
+     заменить тела Ads.interstitial / Ads.rewarded на вызовы
+     ysdk.adv.showFullscreenAdv / ysdk.adv.showRewardedVideo. */
+  const Ads = {
+    interstitial(onDone) { onDone(); },
+    rewarded(onReward) { onReward(true); },
+  };
+
+  const GRID_SIZE = 8;
+  const COLOR_KEYS = ["red", "yellow", "green", "blue", "purple", "orange"];
+  const COLOR_ICON = { red: "●", yellow: "▲", green: "■", blue: "◆", purple: "★", orange: "✚" };
+
+  const LEVELS = [
+    { numColors: 4, moves: 22, goal: { type: "score", value: 300 } },
+    { numColors: 5, moves: 20, goal: { type: "score", value: 550 } },
+    { numColors: 5, moves: 18, goal: { type: "color", color: "blue", value: 24 } },
+    { numColors: 6, moves: 17, goal: { type: "score", value: 900 } },
+    { numColors: 6, moves: 15, goal: { type: "color", color: "red", value: 30 } },
+    { numColors: 6, moves: 14, goal: { type: "score", value: 1300 } },
+  ];
+
+  const boardEl = document.getElementById("board");
+  const levelValueEl = document.getElementById("levelValue");
+  const scoreValueEl = document.getElementById("scoreValue");
+  const movesValueEl = document.getElementById("movesValue");
+  const movesChipEl = document.getElementById("movesChip");
+  const goalBannerEl = document.getElementById("goalBanner");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const pauseOverlay = document.getElementById("pauseOverlay");
+  const endOverlay = document.getElementById("endOverlay");
+  const pauseLevelEl = document.getElementById("pauseLevel");
+  const pauseScoreEl = document.getElementById("pauseScore");
+  const endTitleEl = document.getElementById("endTitle");
+  const endSubEl = document.getElementById("endSub");
+  const endScoreEl = document.getElementById("endScore");
+  const nextLevelBtn = document.getElementById("nextLevelBtn");
+  const retryBtn = document.getElementById("retryBtn");
+  const extraMovesBtn = document.getElementById("extraMovesBtn");
+  const resumeBtn = document.getElementById("resumeBtn");
+  const restartFromPauseBtn = document.getElementById("restartFromPauseBtn");
+
+  let state = null;
+  let cellSize = 0;
+  let uidCounter = 0;
+
+  function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+  function randomColor(numColors) { return COLOR_KEYS[rand(0, numColors - 1)]; }
+
+  function newGameState(levelIndex) {
+    return {
+      levelIndex,
+      numColors: LEVELS[levelIndex].numColors,
+      goal: LEVELS[levelIndex].goal,
+      movesLeft: LEVELS[levelIndex].moves,
+      score: 0,
+      colorCounts: {},
+      grid: Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null)),
+      movesSinceGolden: 0,
+      goldenThreshold: rand(8, 10),
+      hasGolden: false,
+      busy: false,
+      paused: false,
+      finished: false,
+    };
+  }
+
+  function createTileObject(color, isGolden) {
+    const el = document.createElement("div");
+    el.className = "tile";
+    el.dataset.color = color;
+    const body = document.createElement("div");
+    body.className = "tile-body";
+    const icon = document.createElement("span");
+    icon.className = "tile-icon";
+    icon.textContent = COLOR_ICON[color] || "";
+    body.appendChild(icon);
+    el.appendChild(body);
+    const tile = { id: ++uidCounter, color, isGolden: !!isGolden, row: 0, col: 0, el };
+    if (isGolden) el.classList.add("golden");
+    el.addEventListener("click", () => onTileClick(tile));
+    return tile;
+  }
+
+  function setTilePosition(tile, animate) {
+    if (!animate) {
+      tile.el.style.transition = "none";
+      tile.el.style.left = tile.col * cellSize + "px";
+      tile.el.style.top = tile.row * cellSize + "px";
+      // eslint-disable-next-line no-unused-expressions
+      tile.el.offsetHeight;
+      tile.el.style.transition = "";
+    } else {
+      tile.el.style.left = tile.col * cellSize + "px";
+      tile.el.style.top = tile.row * cellSize + "px";
+    }
+    tile.el.style.width = cellSize + "px";
+    tile.el.style.height = cellSize + "px";
+  }
+
+  function buildInitialBoard() {
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        let color;
+        // Avoid accidentally spawning an already-matched group of 3+ at start.
+        let tries = 0;
+        do {
+          color = randomColor(state.numColors);
+          tries++;
+        } while (tries < 8 && wouldFormInitialMatch(row, col, color));
+        const tile = createTileObject(color, false);
+        tile.row = row;
+        tile.col = col;
+        state.grid[row][col] = tile;
+        boardEl.appendChild(tile.el);
+        setTilePosition(tile, false);
+      }
+    }
+  }
+
+  function wouldFormInitialMatch(row, col, color) {
+    if (col >= 2) {
+      const a = state.grid[row][col - 1], b = state.grid[row][col - 2];
+      if (a && b && a.color === color && b.color === color) return true;
+    }
+    if (row >= 2) {
+      const a = state.grid[row - 1][col], b = state.grid[row - 2][col];
+      if (a && b && a.color === color && b.color === color) return true;
+    }
+    return false;
+  }
+
+  function clearBoardDOM() {
+    boardEl.innerHTML = "";
+  }
+
+  function floodFillGroup(startRow, startCol) {
+    const start = state.grid[startRow][startCol];
+    if (!start || start.isGolden) return [];
+    const color = start.color;
+    const visited = new Set();
+    const stack = [[startRow, startCol]];
+    const group = [];
+    while (stack.length) {
+      const [r, c] = stack.pop();
+      const key = r + "," + c;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const tile = state.grid[r] && state.grid[r][c];
+      if (!tile || tile.isGolden || tile.color !== color) continue;
+      group.push(tile);
+      if (r > 0) stack.push([r - 1, c]);
+      if (r < GRID_SIZE - 1) stack.push([r + 1, c]);
+      if (c > 0) stack.push([r, c - 1]);
+      if (c < GRID_SIZE - 1) stack.push([r, c + 1]);
+    }
+    return group;
+  }
+
+  function onTileClick(tile) {
+    if (state.busy || state.paused || state.finished) return;
+    if (tile.isGolden) {
+      activateGolden(tile);
+      return;
+    }
+    const group = floodFillGroup(tile.row, tile.col);
+    if (group.length >= 3) {
+      removeGroup(group);
+    } else {
+      tile.el.classList.remove("shake");
+      // eslint-disable-next-line no-unused-expressions
+      tile.el.offsetWidth;
+      tile.el.classList.add("shake");
+      setTimeout(() => tile.el.classList.remove("shake"), 340);
+    }
+  }
+
+  function activateGolden(tile) {
+    state.busy = true;
+    const neighbors = [
+      [tile.row - 1, tile.col],
+      [tile.row + 1, tile.col],
+      [tile.row, tile.col - 1],
+      [tile.row, tile.col + 1],
+    ];
+    neighbors.forEach(([r, c]) => {
+      const t = state.grid[r] && state.grid[r][c];
+      if (t && !t.isGolden) {
+        t.color = tile.color;
+        t.el.dataset.color = tile.color;
+        t.el.querySelector(".tile-icon").textContent = COLOR_ICON[tile.color] || "";
+      }
+    });
+    tile.isGolden = false;
+    tile.el.classList.remove("golden");
+    state.hasGolden = false;
+
+    spendMove();
+    setTimeout(() => {
+      state.busy = false;
+      maybeSpawnGolden();
+      checkOutcome();
+    }, 180);
+  }
+
+  function spendMove() {
+    state.movesLeft = Math.max(0, state.movesLeft - 1);
+    state.movesSinceGolden++;
+    movesValueEl.textContent = state.movesLeft;
+    movesChipEl.classList.toggle("low", state.movesLeft <= 5);
+  }
+
+  function removeGroup(group) {
+    state.busy = true;
+    const bonus = Math.max(0, group.length - 3) * 5;
+    const points = group.length * 10 + bonus;
+    state.score += points;
+    scoreValueEl.textContent = state.score;
+
+    group.forEach(tile => {
+      state.colorCounts[tile.color] = (state.colorCounts[tile.color] || 0) + 1;
+      tile.el.classList.add("removing");
+      state.grid[tile.row][tile.col] = null;
+    });
+
+    spendMove();
+    updateGoalBanner();
+
+    setTimeout(() => {
+      group.forEach(tile => tile.el.remove());
+      applyGravityAndRefill();
+      setTimeout(() => {
+        state.busy = false;
+        maybeSpawnGolden();
+        checkOutcome();
+      }, 280);
+    }, 200);
+  }
+
+  function applyGravityAndRefill() {
+    for (let col = 0; col < GRID_SIZE; col++) {
+      const existing = [];
+      for (let row = 0; row < GRID_SIZE; row++) {
+        if (state.grid[row][col]) existing.push(state.grid[row][col]);
+        state.grid[row][col] = null;
+      }
+      const newRowStart = GRID_SIZE - existing.length;
+      existing.forEach((tile, i) => {
+        const newRow = newRowStart + i;
+        tile.row = newRow;
+        tile.col = col;
+        state.grid[newRow][col] = tile;
+        setTilePosition(tile, true);
+      });
+      for (let i = 0; i < newRowStart; i++) {
+        const finalRow = i;
+        const color = randomColor(state.numColors);
+        const tile = createTileObject(color, false);
+        tile.row = finalRow;
+        tile.col = col;
+        state.grid[finalRow][col] = tile;
+        boardEl.appendChild(tile.el);
+        tile.row = finalRow - newRowStart - 1;
+        setTilePosition(tile, false);
+        tile.row = finalRow;
+        requestAnimationFrame(() => requestAnimationFrame(() => setTilePosition(tile, true)));
+      }
+    }
+  }
+
+  function maybeSpawnGolden() {
+    if (state.hasGolden || state.finished) return;
+    if (state.movesSinceGolden < state.goldenThreshold) return;
+    const candidates = [];
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const t = state.grid[row][col];
+        if (t && !t.isGolden) candidates.push(t);
+      }
+    }
+    if (!candidates.length) return;
+    const chosen = candidates[rand(0, candidates.length - 1)];
+    chosen.isGolden = true;
+    chosen.el.classList.add("golden");
+    state.hasGolden = true;
+    state.movesSinceGolden = 0;
+    state.goldenThreshold = rand(8, 10);
+  }
+
+  function currentGoalProgress() {
+    if (state.goal.type === "score") return state.score;
+    return state.colorCounts[state.goal.color] || 0;
+  }
+
+  function goalReached() {
+    return currentGoalProgress() >= state.goal.value;
+  }
+
+  function updateGoalBanner() {
+    const g = state.goal;
+    const progress = currentGoalProgress();
+    if (g.type === "score") {
+      goalBannerEl.innerHTML = '<span class="lvl">Ур. ' + (state.levelIndex + 1) + '</span>Набрать ' +
+        g.value + ' очков — сейчас ' + progress;
+    } else {
+      goalBannerEl.innerHTML = '<span class="lvl">Ур. ' + (state.levelIndex + 1) + '</span>Убрать ' +
+        g.value + ' плиток цвета «' + colorName(g.color) + '» — собрано ' + progress;
+    }
+  }
+
+  function colorName(key) {
+    return { red: "красный", yellow: "жёлтый", green: "зелёный", blue: "синий", purple: "фиолетовый", orange: "оранжевый" }[key] || key;
+  }
+
+  function checkOutcome() {
+    if (state.finished) return;
+    if (goalReached()) {
+      state.finished = true;
+      showEnd(true);
+    } else if (state.movesLeft <= 0) {
+      state.finished = true;
+      showEnd(false);
+    }
+  }
+
+  function showEnd(won) {
+    endOverlay.hidden = false;
+    endScoreEl.textContent = state.score;
+    const isLastLevel = state.levelIndex >= LEVELS.length - 1;
+    if (won) {
+      endTitleEl.textContent = "Уровень пройден!";
+      endSubEl.textContent = isLastLevel ? "Это был последний уровень!" : "Цель достигнута";
+      nextLevelBtn.hidden = isLastLevel;
+      extraMovesBtn.hidden = true;
+    } else {
+      endTitleEl.textContent = "Ходы закончились";
+      endSubEl.textContent = "Цель не достигнута, но можно попробовать снова";
+      nextLevelBtn.hidden = true;
+      extraMovesBtn.hidden = false;
+    }
+  }
+
+  function startLevel(levelIndex) {
+    clearBoardDOM();
+    state = newGameState(levelIndex);
+    levelValueEl.textContent = levelIndex + 1;
+    scoreValueEl.textContent = 0;
+    movesValueEl.textContent = state.movesLeft;
+    movesChipEl.classList.remove("low");
+    endOverlay.hidden = true;
+    pauseOverlay.hidden = true;
+    updateGoalBanner();
+    recalcCellSize();
+    buildInitialBoard();
+  }
+
+  function recalcCellSize() {
+    const rect = boardEl.getBoundingClientRect();
+    cellSize = rect.width / GRID_SIZE;
+    if (!state) return;
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const tile = state.grid[row][col];
+        if (tile) setTilePosition(tile, false);
+      }
+    }
+  }
+
+  /* ---------- UI wiring ---------- */
+  pauseBtn.addEventListener("click", () => {
+    if (state.finished) return;
+    state.paused = true;
+    pauseLevelEl.textContent = state.levelIndex + 1;
+    pauseScoreEl.textContent = state.score;
+    pauseOverlay.hidden = false;
+  });
+
+  resumeBtn.addEventListener("click", () => {
+    state.paused = false;
+    pauseOverlay.hidden = true;
+  });
+
+  restartFromPauseBtn.addEventListener("click", () => {
+    pauseOverlay.hidden = true;
+    startLevel(state.levelIndex);
+  });
+
+  nextLevelBtn.addEventListener("click", () => {
+    const next = Math.min(state.levelIndex + 1, LEVELS.length - 1);
+    endOverlay.hidden = true;
+    Ads.interstitial(() => startLevel(next));
+  });
+
+  retryBtn.addEventListener("click", () => {
+    const idx = state.levelIndex;
+    endOverlay.hidden = true;
+    startLevel(idx);
+  });
+
+  extraMovesBtn.addEventListener("click", () => {
+    Ads.rewarded((granted) => {
+      if (!granted) return;
+      state.finished = false;
+      state.movesLeft += 5;
+      movesValueEl.textContent = state.movesLeft;
+      movesChipEl.classList.remove("low");
+      endOverlay.hidden = true;
+    });
+  });
+
+  window.addEventListener("resize", recalcCellSize);
+  window.addEventListener("orientationchange", recalcCellSize);
+
+  startLevel(0);
+})();
+</script>
+</body>
+</html>
