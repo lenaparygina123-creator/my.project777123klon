@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Цветной прилив — Color Tide</title>
+<!-- Yandex Games SDK: relative path resolves inside the Yandex Games platform iframe.
+     Locally (outside the platform) this 404s harmlessly and we fall back to localStorage. -->
+<script src="/sdk.js" onerror="window.__ysdkLoadFailed = true;"></script>
+<style>
+  :root{
+    --bg1:#3a1c71; --bg2:#d76d77; --bg3:#ffaf7b;
+    --card:#ffffff; --card-text:#2d1b4e;
+    --accent:#ff6f61; --accent2:#4caf50;
+    --tile-red:#ff5252; --tile-blue:#448aff; --tile-green:#4caf50;
+    --tile-yellow:#ffd740; --tile-purple:#ab47bc; --tile-orange:#ff9100;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    overflow:hidden; overscroll-behavior:none;
+    font-family:'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+    touch-action:manipulation;
+  }
+  #app{
+    position:fixed; inset:0;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .screen{display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:center; padding:16px;}
+  .screen.active{display:flex;}
+
+  /* --- Loading --- */
+  .spinner{
+    width:48px; height:48px; border-radius:50%;
+    border:5px solid rgba(255,255,255,.35); border-top-color:#fff;
+    animation:spin 0.9s linear infinite; margin-bottom:16px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #loading-screen p{color:#fff; font-weight:600; letter-spacing:.5px;}
+
+  /* --- Start / generic card screens --- */
+  .logo{
+    font-size:clamp(28px,7vw,42px); font-weight:800; color:#fff;
+    text-shadow:0 4px 10px rgba(0,0,0,.25); text-align:center; margin:0 0 4px;
+  }
+  .subtitle{color:rgba(255,255,255,.9); margin:0 0 24px; font-size:14px; text-align:center;}
+  .card{
+    background:var(--card); color:var(--card-text); border-radius:20px;
+    padding:24px 20px; width:min(88vw,360px); text-align:center;
+    box-shadow:0 12px 30px rgba(0,0,0,.25);
+  }
+  .card .stats-row{display:flex; justify-content:space-around; margin:14px 0 18px;}
+  .card .stats-row .stat-box{display:flex; flex-direction:column;}
+  .card .stats-row .stat-box b{font-size:20px;}
+  .card .stats-row .stat-box span{font-size:12px; opacity:.65;}
+
+  .btn{
+    display:block; width:100%; border:none; border-radius:14px; padding:14px 16px;
+    font-size:16px; font-weight:700; margin:8px 0; cursor:pointer;
+    background:var(--accent); color:#fff; transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:active{transform:scale(.96); filter:brightness(.95);}
+  .btn.secondary{background:#eee; color:#333;}
+  .btn.accent{background:linear-gradient(135deg,#ffb300,#ff6f00);}
+  .btn:disabled{opacity:.5; cursor:default;}
+
+  /* --- Game screen --- */
+  #game-screen{justify-content:flex-start; padding-top:10px;}
+  #hud{
+    width:min(94vw,480px); display:flex; align-items:center; justify-content:space-between;
+    gap:8px; margin-bottom:8px; color:#fff;
+  }
+  #pause-btn{
+    background:rgba(255,255,255,.2); border:none; color:#fff; font-size:18px;
+    width:40px; height:40px; border-radius:12px; cursor:pointer; flex:0 0 auto;
+  }
+  .hud-stats{display:flex; gap:10px; flex:1; justify-content:center;}
+  .stat{
+    background:rgba(255,255,255,.18); border-radius:12px; padding:6px 12px;
+    font-weight:700; font-size:14px; display:flex; align-items:center; gap:4px; white-space:nowrap;
+  }
+  #level-badge{
+    background:rgba(255,255,255,.18); border-radius:12px; padding:6px 10px;
+    font-size:13px; font-weight:700;
+  }
+  #goal-bar{
+    width:min(94vw,480px); color:#fff; font-size:13px; text-align:center;
+    background:rgba(0,0,0,.18); border-radius:10px; padding:6px 10px; margin-bottom:10px;
+    font-weight:600;
+  }
+  #board-wrap{display:flex; align-items:center; justify-content:center; width:100%;}
+  #board{
+    position:relative; width:min(94vw,480px); aspect-ratio:1/1;
+    background:rgba(255,255,255,.12); border-radius:18px; overflow:hidden;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.25), 0 10px 24px rgba(0,0,0,.25);
+  }
+  #board.no-anim .tile{transition:none !important;}
+
+  .tile{
+    position:absolute; border-radius:9px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:top .28s cubic-bezier(.25,.9,.3,1.15), left .24s ease, opacity .22s ease;
+    box-shadow:inset 0 -4px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.35);
+  }
+  .tile::after{ font-size:60%; opacity:.85; color:rgba(0,0,0,.35); }
+  .tile.color-red{background:var(--tile-red);}
+  .tile.color-blue{background:var(--tile-blue);}
+  .tile.color-green{background:var(--tile-green);}
+  .tile.color-yellow{background:var(--tile-yellow);}
+  .tile.color-purple{background:var(--tile-purple);}
+  .tile.color-orange{background:var(--tile-orange);}
+  .tile.color-red::after{content:'●';}
+  .tile.color-blue::after{content:'■';}
+  .tile.color-green::after{content:'▲';}
+  .tile.color-yellow::after{content:'★';}
+  .tile.color-purple::after{content:'◆';}
+  .tile.color-orange::after{content:'♥';}
+
+  .tile.golden{
+    box-shadow:0 0 14px 4px gold, inset 0 0 10px 2px #fff6cf;
+    animation:goldPulse 1s ease-in-out infinite;
+    z-index:5;
+  }
+  @keyframes goldPulse{ 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.35);} }
+
+  .tile.removing{ animation:popOut .24s ease forwards; }
+  @keyframes popOut{ to{ transform:scale(.15); opacity:0; } }
+
+  .tile.flash{ animation:flashWhite .3s ease; }
+  @keyframes flashWhite{ 0%{filter:brightness(2.2);} 100%{filter:brightness(1);} }
+
+  .tile.shake{ animation:shakeAnim .28s ease; }
+  @keyframes shakeAnim{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-5px) rotate(-2deg);}
+    50%{transform:translateX(5px) rotate(2deg);}
+    80%{transform:translateX(-3px);}
+  }
+
+  .floating-score{
+    position:absolute; transform:translate(-50%,-50%); pointer-events:none;
+    font-weight:800; color:#fff; text-shadow:0 2px 4px rgba(0,0,0,.45);
+    font-size:clamp(14px,3.4vw,20px); z-index:30; animation:floatUp .7s ease forwards;
+  }
+  @keyframes floatUp{ 0%{opacity:1; transform:translate(-50%,-50%);} 100%{opacity:0; transform:translate(-50%,-160%);} }
+
+  /* --- Overlays --- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(15,5,35,.72);
+    display:flex; align-items:center; justify-content:center; z-index:60;
+    padding:16px;
+  }
+  .overlay[hidden]{display:none;}
+  .modal{
+    background:var(--card); color:var(--card-text); border-radius:20px;
+    padding:26px 22px; width:min(88vw,340px); text-align:center;
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+  }
+  .modal h2{margin:0 0 6px; font-size:22px;}
+  .modal p{margin:4px 0 16px; font-size:14px; opacity:.8;}
+
+  #rotate-hint{
+    display:none; position:fixed; inset:0; z-index:999; background:#0d0620; color:#fff;
+    align-items:center; justify-content:center; text-align:center; padding:24px; font-size:18px;
+  }
+  @media (orientation:landscape) and (max-height:500px){
+    #rotate-hint{display:flex;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="loading-screen" class="screen active">
+    <div class="spinner"></div>
+    <p>Загрузка «Цветного прилива»…</p>
+  </div>
+
+  <div id="start-screen" class="screen">
+    <h1 class="logo">🌊 Цветной прилив</h1>
+    <p class="subtitle">Собирай группы плиток от 3 штук и лови золотую волну!</p>
+    <div class="card">
+      <div class="stats-row">
+        <div class="stat-box"><b id="best-score-val">0</b><span>Лучший счёт</span></div>
+        <div class="stat-box"><b id="level-progress-val">1 / 5</b><span>Уровень</span></div>
+      </div>
+      <button class="btn" id="play-btn">▶ Играть</button>
+      <button class="btn secondary" id="reset-progress-btn">Сбросить прогресс</button>
+    </div>
+  </div>
+
+  <div id="game-screen" class="screen">
+    <div id="hud">
+      <button id="pause-btn" aria-label="Пауза">⏸</button>
+      <div id="level-badge">Ур. <span id="level-num">1</span></div>
+      <div class="hud-stats">
+        <div class="stat">🏆 <span id="score-val">0</span></div>
+        <div class="stat">👣 <span id="moves-val">0</span></div>
+      </div>
+    </div>
+    <div id="goal-bar">Цель: —</div>
+    <div id="board-wrap"><div id="board"></div></div>
+  </div>
+
+</div>
+
+<div id="pause-overlay" class="overlay" hidden>
+  <div class="modal">
+    <h2>⏸ Пауза</h2>
+    <p>Игра остановлена</p>
+    <button class="btn" id="resume-btn">Продолжить</button>
+    <button class="btn secondary" id="restart-btn">Начать уровень заново</button>
+    <button class="btn secondary" id="menu-btn">В меню</button>
+  </div>
+</div>
+
+<div id="win-overlay" class="overlay" hidden>
+  <div class="modal">
+    <h2>🎉 Уровень пройден!</h2>
+    <p>Счёт за уровень: <b id="win-score">0</b></p>
+    <button class="btn" id="next-level-btn">Следующий уровень →</button>
+    <button class="btn secondary" id="win-menu-btn">В меню</button>
+  </div>
+</div>
+
+<div id="lose-overlay" class="overlay" hidden>
+  <div class="modal">
+    <h2>😕 Ходы закончились</h2>
+    <p>Цель не достигнута. Попробуешь ещё раз?</p>
+    <button class="btn accent" id="reward-btn">📺 +5 ходов за рекламу</button>
+    <button class="btn" id="retry-btn">Играть снова</button>
+    <button class="btn secondary" id="lose-menu-btn">В меню</button>
+  </div>
+</div>
+
+<div id="complete-overlay" class="overlay" hidden>
+  <div class="modal">
+    <h2>🏆 Все уровни пройдены!</h2>
+    <p>Лучший счёт: <b id="final-best">0</b></p>
+    <button class="btn" id="restart-all-btn">Играть с начала</button>
+    <button class="btn secondary" id="complete-menu-btn">В меню</button>
+  </div>
+</div>
+
+<div id="rotate-hint">Поверните устройство в портретный режим 📱</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============================ CONFIG ============================ */
+
+  var COLORS = ['red','blue','green','yellow','purple','orange'];
+  var COLOR_RU = {
+    red:'красных', blue:'синих', green:'зелёных',
+    yellow:'жёлтых', purple:'фиолетовых', orange:'оранжевых'
+  };
+
+  var LEVELS = [
+    { moves:25, colorCount:4, goal:{ type:'score', value:400 } },
+    { moves:22, colorCount:5, goal:{ type:'color', color:'blue', value:20 } },
+    { moves:20, colorCount:5, goal:{ type:'score', value:800 } },
+    { moves:18, colorCount:6, goal:{ type:'color', color:'red', value:28 } },
+    { moves:15, colorCount:6, goal:{ type:'score', value:1200 } }
+  ];
+
+  var SIZE = 8;
+  var SAVE_KEY = 'colorTideSave_v1';
+
+  /* ============================ YANDEX SDK ============================ */
+
+  var ysdk = null;
+  var cachedPlayer = null;
+
+  function initYandexSDK(){
+    return new Promise(function(resolve){
+      if (typeof YaGames === 'undefined') { resolve(); return; }
+      YaGames.init().then(function(sdk){
+        ysdk = sdk;
+        window.ysdk = sdk;
+        resolve();
+      }).catch(function(err){
+        console.warn('YaGames.init failed, falling back to local mode', err);
+        ysdk = null;
+        resolve();
+      });
+    });
+  }
+
+  function getPlayer(){
+    if (!ysdk) return Promise.resolve(null);
+    if (cachedPlayer) return Promise.resolve(cachedPlayer);
+    return ysdk.getPlayer({ scopes:false }).then(function(p){
+      cachedPlayer = p;
+      return p;
+    }).catch(function(err){
+      console.warn('getPlayer failed', err);
+      return null;
+    });
+  }
+
+  function loadProgress(){
+    var fallback = { level:0, bestScore:0, levelsCompleted:0 };
+    if (ysdk){
+      return getPlayer().then(function(player){
+        if (!player) return fallback;
+        return player.getData(['level','bestScore','levelsCompleted']).then(function(data){
+          return {
+            level: data.level || 0,
+            bestScore: data.bestScore || 0,
+            levelsCompleted: data.levelsCompleted || 0
+          };
+        }).catch(function(err){ console.warn('getData failed', err); return fallback; });
+      });
+    }
+    try{
+      var raw = localStorage.getItem(SAVE_KEY);
+      return Promise.resolve(raw ? JSON.parse(raw) : fallback);
+    }catch(e){ return Promise.resolve(fallback); }
+  }
+
+  function saveProgress(data){
+    if (ysdk){
+      return getPlayer().then(function(player){
+        if (!player) return;
+        return player.setData(data, true);
+      }).catch(function(err){ console.warn('setData failed', err); });
+    }
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }catch(e){}
+    return Promise.resolve();
+  }
+
+  function showInterstitial(cb){
+    if (ysdk && ysdk.adv){
+      var called = false;
+      var done = function(){ if (called) return; called = true; cb && cb(); };
+      ysdk.adv.showFullscreenAdv({
+        callbacks:{
+          onClose: function(){ done(); },
+          onError: function(err){ console.warn('interstitial error', err); done(); }
+        }
+      });
+    } else {
+      cb && cb();
+    }
+  }
+
+  function showRewarded(onReward, onClose){
+    if (ysdk && ysdk.adv){
+      ysdk.adv.showRewardedVideo({
+        callbacks:{
+          onRewarded: function(){ onReward && onReward(); },
+          onClose: function(){ onClose && onClose(); },
+          onError: function(err){ console.warn('rewarded error', err); onClose && onClose(); }
+        }
+      });
+    } else {
+      // Fallback for local testing / non-Yandex environments: no real ad system available.
+      var ok = window.confirm('Реклама недоступна в локальном режиме.\nВыдать бонус +5 ходов сейчас?');
+      if (ok) onReward && onReward();
+      onClose && onClose();
+    }
+  }
+
+  /* ============================ AUDIO (WebAudio, no assets) ============================ */
+
+  var audioCtx = null;
+  function playSound(kind){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      var freq = kind === 'golden' ? 880 : kind === 'win' ? 660 : kind === 'lose' ? 180 : 440;
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.16, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.22);
+      o.start();
+      o.stop(audioCtx.currentTime + 0.22);
+    }catch(e){ /* audio not available, ignore */ }
+  }
+
+  /* ============================ GAME STATE ============================ */
+
+  var boardEl = document.getElementById('board');
+  var board = []; // board[r][c] = {color, golden, el} | null
+  var busy = false;
+
+  var state = {
+    levelIndex: 0,
+    level: null,
+    score: 0,
+    movesLeft: 0,
+    removedCounts: {},
+    movesSinceGolden: 0,
+    goldenThreshold: 8
+  };
+
+  var save = { level:0, bestScore:0, levelsCompleted:0 };
+
+  function levelColors(level){
+    return COLORS.slice(0, level.colorCount);
+  }
+
+  function randomColorForLevel(){
+    var list = levelColors(state.level);
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function createTile(color, golden, meta){
+    return { color: color, golden: !!golden, el: null, meta: meta || null };
+  }
+
+  function getCellSize(){
+    return boardEl.clientWidth / SIZE;
+  }
+
+  /* ============================ BOARD GENERATION ============================ */
+
+  function generateBoard(){
+    var colors = levelColors(state.level);
+    var newBoard = [];
+    for (var r = 0; r < SIZE; r++){
+      newBoard.push([]);
+      for (var c = 0; c < SIZE; c++){
+        var color, attempts = 0;
+        do {
+          color = colors[Math.floor(Math.random() * colors.length)];
+          attempts++;
+        } while (attempts < 12 && (
+          (c >= 2 && newBoard[r][c-1].color === color && newBoard[r][c-2].color === color) ||
+          (r >= 2 && newBoard[r-1][c].color === color && newBoard[r-2][c].color === color)
+        ));
+        newBoard[r].push(createTile(color, false, null));
+      }
+    }
+    board = newBoard;
+  }
+
+  function renderBoardFresh(){
+    boardEl.innerHTML = '';
+    var cellSize = getCellSize();
+    for (var r = 0; r < SIZE; r++){
+      for (var c = 0; c < SIZE; c++){
+        var tile = board[r][c];
+        var el = document.createElement('div');
+        el.className = 'tile color-' + tile.color;
+        el.dataset.r = r; el.dataset.c = c;
+        el.style.width = cellSize + 'px';
+        el.style.height = cellSize + 'px';
+        el.style.left = (c * cellSize) + 'px';
+        el.style.top = (r * cellSize) + 'px';
+        el.style.opacity = '0';
+        boardEl.appendChild(el);
+        tile.el = el;
+      }
+    }
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        for (var r2 = 0; r2 < SIZE; r2++){
+          for (var c2 = 0; c2 < SIZE; c2++){
+            board[r2][c2].el.style.opacity = '1';
+          }
+        }
+      });
+    });
+  }
+
+  /* ============================ FLOOD FILL ============================ */
+
+  function floodFill(sr, sc){
+    var startTile = board[sr][sc];
+    if (!startTile || startTile.golden) return [];
+    var color = startTile.color;
+    var seen = new Uint8Array(SIZE * SIZE);
+    seen[sr * SIZE + sc] = 1;
+    var stack = [[sr, sc]];
+    var group = [];
+    while (stack.length){
+      var cur = stack.pop();
+      var r = cur[0], c = cur[1];
+      group.push([r, c]);
+      var neighbors = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+      for (var i = 0; i < 4; i++){
+        var nr = neighbors[i][0], nc = neighbors[i][1];
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+        var key = nr * SIZE + nc;
+        if (seen[key]) continue;
+        var t = board[nr][nc];
+        if (t && !t.golden && t.color === color){
+          seen[key] = 1;
+          stack.push([nr, nc]);
+        }
+      }
+    }
+    return group;
+  }
+
+  /* ============================ INTERACTION ============================ */
+
+  function handleTileClick(r, c){
+    if (busy) return;
+    var tile = board[r][c];
+    if (!tile) return;
+
+    if (tile.golden){
+      busy = true;
+      triggerGolden(r, c);
+      return;
+    }
+
+    var group = floodFill(r, c);
+    if (group.length >= 3){
+      busy = true;
+      removeGroup(group);
+    } else {
+      shakeTile(tile.el);
+    }
+  }
+
+  function shakeTile(el){
+    if (!el) return;
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+    setTimeout(function(){ el.classList.remove('shake'); }, 300);
+  }
+
+  function scoreForGroup(n){
+    return n * 10 + Math.max(0, n - 3) * 5;
+  }
+
+  function removeGroup(cells){
+    var color = board[cells[0][0]][cells[0][1]].color;
+    var gained = scoreForGroup(cells.length);
+    state.score += gained;
+    state.removedCounts[color] = (state.removedCounts[color] || 0) + cells.length;
+
+    playSound('pop');
+    showFloatingScore(gained, cells);
+
+    var elsToRemove = [];
+    cells.forEach(function(cell){
+      var r = cell[0], c = cell[1];
+      var tile = board[r][c];
+      if (tile && tile.el){
+        tile.el.classList.add('removing');
+        elsToRemove.push(tile.el);
+      }
+      board[r][c] = null;
+    });
+
+    setTimeout(function(){
+      elsToRemove.forEach(function(el){ el.remove(); });
+      settleBoard(function(){ afterMove(); });
+    }, 250);
+  }
+
+  function showFloatingScore(amount, cells){
+    var cellSize = getCellSize();
+    var sumR = 0, sumC = 0;
+    cells.forEach(function(cell){ sumR += cell[0]; sumC += cell[1]; });
+    var avgR = sumR / cells.length, avgC = sumC / cells.length;
+    var span = document.createElement('div');
+    span.className = 'floating-score';
+    span.textContent = '+' + amount;
+    span.style.left = (avgC * cellSize + cellSize / 2) + 'px';
+    span.style.top = (avgR * cellSize + cellSize / 2) + 'px';
+    boardEl.appendChild(span);
+    setTimeout(function(){ span.remove(); }, 700);
+  }
+
+  function settleBoard(callback){
+    for (var c = 0; c < SIZE; c++){
+      var existing = [];
+      for (var r = 0; r < SIZE; r++){ if (board[r][c]) existing.push(board[r][c]); }
+      var missing = SIZE - existing.length;
+      var newColumn = [];
+      for (var i = 0; i < missing; i++){
+        newColumn.push(createTile(randomColorForLevel(), false, { isNew:true, missing:missing }));
+      }
+      for (var j = 0; j < existing.length; j++){ newColumn.push(existing[j]); }
+      for (var r2 = 0; r2 < SIZE; r2++){ board[r2][c] = newColumn[r2]; }
+    }
+    syncBoardDOM();
+    setTimeout(function(){ callback && callback(); }, 320);
+  }
+
+  function syncBoardDOM(){
+    var cellSize = getCellSize();
+    var freshEls = [];
+    for (var r = 0; r < SIZE; r++){
+      for (var c = 0; c < SIZE; c++){
+        var tile = board[r][c];
+        if (!tile) continue;
+        if (!tile.el){
+          var el = document.createElement('div');
+          el.className = 'tile color-' + tile.color + (tile.golden ? ' golden' : '');
+          el.dataset.r = r; el.dataset.c = c;
+          el.style.width = cellSize + 'px';
+          el.style.height = cellSize + 'px';
+          var spawnRow = (tile.meta && tile.meta.isNew) ? (r - tile.meta.missing) : r;
+          el.style.top = (spawnRow * cellSize) + 'px';
+          el.style.left = (c * cellSize) + 'px';
+          boardEl.appendChild(el);
+          tile.el = el;
+          freshEls.push({ el: el, r: r });
+        } else {
+          tile.el.dataset.r = r; tile.el.dataset.c = c;
+          tile.el.style.left = (c * cellSize) + 'px';
+          tile.el.style.top = (r * cellSize) + 'px';
+        }
+      }
+    }
+    if (freshEls.length){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          freshEls.forEach(function(f){
+            f.el.style.top = (f.r * cellSize) + 'px';
+          });
+        });
+      });
+    }
+  }
+
+  /* ============================ GOLDEN TIDE ============================ */
+
+  function triggerGolden(r, c){
+    var tile = board[r][c];
+    var color = tile.color;
+    tile.golden = false;
+    tile.el.classList.remove('golden');
+    playSound('golden');
+
+    var neighborCoords = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(function(n){
+      return n[0] >= 0 && n[0] < SIZE && n[1] >= 0 && n[1] < SIZE && board[n[0]][n[1]];
+    });
+
+    var affected = [[r, c]];
+    neighborCoords.forEach(function(n){
+      var nt = board[n[0]][n[1]];
+      nt.color = color;
+      nt.el.className = 'tile color-' + color + ' flash';
+      affected.push(n);
+    });
+
+    setTimeout(function(){
+      affected.forEach(function(a){
+        var t = board[a[0]][a[1]];
+        if (t && t.el) t.el.classList.remove('flash');
+      });
+
+      var toRemove = {};
+      var any = false;
+      affected.forEach(function(a){
+        var grp = floodFill(a[0], a[1]);
+        if (grp.length >= 3){
+          any = true;
+          grp.forEach(function(cell){ toRemove[cell[0] * SIZE + cell[1]] = cell; });
+        }
+      });
+
+      if (any){
+        var cellsArr = Object.keys(toRemove).map(function(k){ return toRemove[k]; });
+        removeGroup(cellsArr);
+      } else {
+        afterMove();
+      }
+    }, 300);
+  }
+
+  function maybeSpawnGolden(){
+    state.movesSinceGolden++;
+    var hasGolden = false;
+    for (var r = 0; r < SIZE && !hasGolden; r++){
+      for (var c = 0; c < SIZE; c++){
+        if (board[r][c] && board[r][c].golden){ hasGolden = true; break; }
+      }
+    }
+    if (!hasGolden && state.movesSinceGolden >= state.goldenThreshold){
+      var cells = [];
+      for (var r2 = 0; r2 < SIZE; r2++){
+        for (var c2 = 0; c2 < SIZE; c2++){
+          if (board[r2][c2]) cells.push([r2, c2]);
+        }
+      }
+      if (cells.length){
+        var pick = cells[Math.floor(Math.random() * cells.length)];
+        var t = board[pick[0]][pick[1]];
+        t.golden = true;
+        t.el.classList.add('golden');
+      }
+      state.movesSinceGolden = 0;
+      state.goldenThreshold = 8 + Math.floor(Math.random() * 3); // 8..10
+    }
+  }
+
+  /* ============================ MOVE / LEVEL FLOW ============================ */
+
+  function afterMove(){
+    state.movesLeft = Math.max(0, state.movesLeft - 1);
+    updateHUD();
+    maybeSpawnGolden();
+    busy = false;
+    checkLevelEnd();
+  }
+
+  function checkLevelEnd(){
+    var goal = state.level.goal;
+    var achieved = false;
+    if (goal.type === 'score') achieved = state.score >= goal.value;
+    else if (goal.type === 'color') achieved = (state.removedCounts[goal.color] || 0) >= goal.value;
+
+    if (achieved){ onLevelWin(); return; }
+    if (state.movesLeft <= 0){ onLevelLose(); return; }
+  }
+
+  function goalText(){
+    var goal = state.level.goal;
+    if (goal.type === 'score'){
+      return 'Цель: ' + goal.value + ' очков (' + state.score + '/' + goal.value + ')';
+    }
+    var have = state.removedCounts[goal.color] || 0;
+    return 'Уберите ' + goal.value + ' ' + COLOR_RU[goal.color] + ' плиток (' + have + '/' + goal.value + ')';
+  }
+
+  function updateHUD(){
+    document.getElementById('score-val').textContent = state.score;
+    document.getElementById('moves-val').textContent = state.movesLeft;
+    document.getElementById('level-num').textContent = (state.levelIndex + 1);
+    document.getElementById('goal-bar').textContent = goalText();
+  }
+
+  function startLevel(index){
+    state.levelIndex = index;
+    state.level = LEVELS[index];
+    state.score = 0;
+    state.movesLeft = state.level.moves;
+    state.removedCounts = {};
+    state.movesSinceGolden = 0;
+    state.goldenThreshold = 8 + Math.floor(Math.random() * 3);
+    busy = false;
+
+    switchScreen('game');
+    generateBoard();
+    renderBoardFresh();
+    updateHUD();
+  }
+
+  function onLevelWin(){
+    busy = true;
+    playSound('win');
+    save.bestScore = Math.max(save.bestScore, state.score);
+    save.levelsCompleted = Math.max(save.levelsCompleted, state.levelIndex + 1);
+    save.level = Math.min(state.levelIndex + 1, LEVELS.length - 1);
+    saveProgress(save);
+
+    if (state.levelIndex + 1 >= LEVELS.length){
+      document.getElementById('final-best').textContent = save.bestScore;
+      showOverlay('complete-overlay');
+    } else {
+      document.getElementById('win-score').textContent = state.score;
+      showOverlay('win-overlay');
+    }
+  }
+
+  function onLevelLose(){
+    busy = true;
+    playSound('lose');
+    save.bestScore = Math.max(save.bestScore, state.score);
+    saveProgress(save);
+    showOverlay('lose-overlay');
+  }
+
+  /* ============================ SCREENS / OVERLAYS ============================ */
+
+  function switchScreen(name){
+    ['loading-screen','start-screen','game-screen'].forEach(function(id){
+      document.getElementById(id).classList.toggle('active', id === name + '-screen');
+    });
+  }
+
+  function showOverlay(id){
+    document.getElementById(id).hidden = false;
+  }
+  function hideOverlay(id){
+    document.getElementById(id).hidden = true;
+  }
+
+  function refreshStartScreen(){
+    document.getElementById('best-score-val').textContent = save.bestScore;
+    document.getElementById('level-progress-val').textContent =
+      (Math.min(save.level + 1, LEVELS.length)) + ' / ' + LEVELS.length;
+  }
+
+  /* ============================ RESIZE ============================ */
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      if (!document.getElementById('game-screen').classList.contains('active')) return;
+      var cellSize = getCellSize();
+      boardEl.classList.add('no-anim');
+      for (var r = 0; r < SIZE; r++){
+        for (var c = 0; c < SIZE; c++){
+          var tile = board[r][c];
+          if (!tile || !tile.el) continue;
+          tile.el.style.width = cellSize + 'px';
+          tile.el.style.height = cellSize + 'px';
+          tile.el.style.left = (c * cellSize) + 'px';
+          tile.el.style.top = (r * cellSize) + 'px';
+        }
+      }
+      requestAnimationFrame(function(){ boardEl.classList.remove('no-anim'); });
+    }, 150);
+  });
+
+  /* ============================ EVENT WIRING ============================ */
+
+  boardEl.addEventListener('click', function(e){
+    var el = e.target.closest ? e.target.closest('.tile') : null;
+    if (!el) return;
+    handleTileClick(parseInt(el.dataset.r, 10), parseInt(el.dataset.c, 10));
+  });
+
+  document.getElementById('play-btn').addEventListener('click', function(){
+    startLevel(Math.min(save.level, LEVELS.length - 1));
+  });
+
+  document.getElementById('reset-progress-btn').addEventListener('click', function(){
+    if (!window.confirm('Сбросить весь прогресс?')) return;
+    save = { level:0, bestScore:0, levelsCompleted:0 };
+    saveProgress(save);
+    refreshStartScreen();
+  });
+
+  document.getElementById('pause-btn').addEventListener('click', function(){
+    busy = true;
+    showOverlay('pause-overlay');
+  });
+  document.getElementById('resume-btn').addEventListener('click', function(){
+    hideOverlay('pause-overlay');
+    busy = false;
+  });
+  document.getElementById('restart-btn').addEventListener('click', function(){
+    hideOverlay('pause-overlay');
+    startLevel(state.levelIndex);
+  });
+  document.getElementById('menu-btn').addEventListener('click', function(){
+    hideOverlay('pause-overlay');
+    refreshStartScreen();
+    switchScreen('start');
+  });
+
+  document.getElementById('next-level-btn').addEventListener('click', function(){
+    hideOverlay('win-overlay');
+    busy = true;
+    showInterstitial(function(){
+      startLevel(state.levelIndex + 1);
+    });
+  });
+  document.getElementById('win-menu-btn').addEventListener('click', function(){
+    hideOverlay('win-overlay');
+    refreshStartScreen();
+    switchScreen('start');
+  });
+
+  document.getElementById('reward-btn').addEventListener('click', function(){
+    showRewarded(function(){
+      state.movesLeft += 5;
+    }, function(){
+      hideOverlay('lose-overlay');
+      updateHUD();
+      busy = false;
+      checkLevelEnd();
+    });
+  });
+  document.getElementById('retry-btn').addEventListener('click', function(){
+    hideOverlay('lose-overlay');
+    startLevel(state.levelIndex);
+  });
+  document.getElementById('lose-menu-btn').addEventListener('click', function(){
+    hideOverlay('lose-overlay');
+    refreshStartScreen();
+    switchScreen('start');
+  });
+
+  document.getElementById('restart-all-btn').addEventListener('click', function(){
+    hideOverlay('complete-overlay');
+    save.level = 0;
+    saveProgress(save);
+    startLevel(0);
+  });
+  document.getElementById('complete-menu-btn').addEventListener('click', function(){
+    hideOverlay('complete-overlay');
+    refreshStartScreen();
+    switchScreen('start');
+  });
+
+  /* ============================ BOOTSTRAP ============================ */
+
+  initYandexSDK()
+    .then(loadProgress)
+    .then(function(data){
+      save = data;
+      refreshStartScreen();
+      switchScreen('start');
+      if (ysdk && ysdk.features && ysdk.features.LoadingAPI && ysdk.features.LoadingAPI.ready){
+        ysdk.features.LoadingAPI.ready();
+      }
+    })
+    .catch(function(err){
+      console.warn('Bootstrap error', err);
+      switchScreen('start');
+    });
+
+})();
+</script>
+</body>
+</html>
