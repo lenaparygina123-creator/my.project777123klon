@@ -177,32 +177,32 @@
 
   <div id="loading-screen" class="screen active">
     <div class="spinner"></div>
-    <p>Загрузка «Цветного прилива»…</p>
+    <p data-i18n="loading_text">Загрузка «Цветного прилива»…</p>
   </div>
 
   <div id="start-screen" class="screen">
-    <h1 class="logo">🌊 Цветной прилив</h1>
-    <p class="subtitle">Собирай группы плиток от 3 штук и лови золотую волну!</p>
+    <h1 class="logo">🌊 <span data-i18n="game_title">Цветной прилив</span></h1>
+    <p class="subtitle" data-i18n="subtitle">Собирай группы плиток от 3 штук и лови золотую волну!</p>
     <div class="card">
       <div class="stats-row">
-        <div class="stat-box"><b id="best-score-val">0</b><span>Лучший счёт</span></div>
-        <div class="stat-box"><b id="level-progress-val">1 / 5</b><span>Уровень</span></div>
+        <div class="stat-box"><b id="best-score-val">0</b><span data-i18n="best_score_label">Лучший счёт</span></div>
+        <div class="stat-box"><b id="level-progress-val">1 / 5</b><span data-i18n="level_label">Уровень</span></div>
       </div>
-      <button class="btn" id="play-btn">▶ Играть</button>
-      <button class="btn secondary" id="reset-progress-btn">Сбросить прогресс</button>
+      <button class="btn" id="play-btn">▶ <span data-i18n="play_btn">Играть</span></button>
+      <button class="btn secondary" id="reset-progress-btn" data-i18n="reset_btn">Сбросить прогресс</button>
     </div>
   </div>
 
   <div id="game-screen" class="screen">
     <div id="hud">
-      <button id="pause-btn" aria-label="Пауза">⏸</button>
-      <div id="level-badge">Ур. <span id="level-num">1</span></div>
+      <button id="pause-btn" data-i18n-aria="pause_aria">⏸</button>
+      <div id="level-badge"><span data-i18n="level_short">Ур.</span> <span id="level-num">1</span></div>
       <div class="hud-stats">
         <div class="stat">🏆 <span id="score-val">0</span></div>
         <div class="stat">👣 <span id="moves-val">0</span></div>
       </div>
     </div>
-    <div id="goal-bar">Цель: —</div>
+    <div id="goal-bar" data-i18n="goal_placeholder">Цель: —</div>
     <div id="board-wrap"><div id="board"></div></div>
   </div>
 
@@ -210,43 +210,43 @@
 
 <div id="pause-overlay" class="overlay" hidden>
   <div class="modal">
-    <h2>⏸ Пауза</h2>
-    <p>Игра остановлена</p>
-    <button class="btn" id="resume-btn">Продолжить</button>
-    <button class="btn secondary" id="restart-btn">Начать уровень заново</button>
-    <button class="btn secondary" id="menu-btn">В меню</button>
+    <h2>⏸ <span data-i18n="pause_title">Пауза</span></h2>
+    <p data-i18n="pause_sub">Игра остановлена</p>
+    <button class="btn" id="resume-btn" data-i18n="resume_btn">Продолжить</button>
+    <button class="btn secondary" id="restart-btn" data-i18n="restart_btn">Начать уровень заново</button>
+    <button class="btn secondary" id="menu-btn" data-i18n="menu_btn">В меню</button>
   </div>
 </div>
 
 <div id="win-overlay" class="overlay" hidden>
   <div class="modal">
-    <h2>🎉 Уровень пройден!</h2>
-    <p>Счёт за уровень: <b id="win-score">0</b></p>
-    <button class="btn" id="next-level-btn">Следующий уровень →</button>
-    <button class="btn secondary" id="win-menu-btn">В меню</button>
+    <h2>🎉 <span data-i18n="win_title">Уровень пройден!</span></h2>
+    <p><span data-i18n="win_score_label">Счёт за уровень:</span> <b id="win-score">0</b></p>
+    <button class="btn" id="next-level-btn" data-i18n="next_level_btn">Следующий уровень →</button>
+    <button class="btn secondary" id="win-menu-btn" data-i18n="menu_btn">В меню</button>
   </div>
 </div>
 
 <div id="lose-overlay" class="overlay" hidden>
   <div class="modal">
-    <h2>😕 Ходы закончились</h2>
-    <p>Цель не достигнута. Попробуешь ещё раз?</p>
-    <button class="btn accent" id="reward-btn">📺 +5 ходов за рекламу</button>
-    <button class="btn" id="retry-btn">Играть снова</button>
-    <button class="btn secondary" id="lose-menu-btn">В меню</button>
+    <h2>😕 <span data-i18n="lose_title">Ходы закончились</span></h2>
+    <p data-i18n="lose_sub">Цель не достигнута. Попробуешь ещё раз?</p>
+    <button class="btn accent" id="reward-btn">📺 <span data-i18n="reward_btn">+5 ходов за рекламу</span></button>
+    <button class="btn" id="retry-btn" data-i18n="retry_btn">Играть снова</button>
+    <button class="btn secondary" id="lose-menu-btn" data-i18n="menu_btn">В меню</button>
   </div>
 </div>
 
 <div id="complete-overlay" class="overlay" hidden>
   <div class="modal">
-    <h2>🏆 Все уровни пройдены!</h2>
-    <p>Лучший счёт: <b id="final-best">0</b></p>
-    <button class="btn" id="restart-all-btn">Играть с начала</button>
-    <button class="btn secondary" id="complete-menu-btn">В меню</button>
+    <h2>🏆 <span data-i18n="final_title">Все уровни пройдены!</span></h2>
+    <p><span data-i18n="final_best_label">Лучший счёт:</span> <b id="final-best">0</b></p>
+    <button class="btn" id="restart-all-btn" data-i18n="restart_all_btn">Играть с начала</button>
+    <button class="btn secondary" id="complete-menu-btn" data-i18n="menu_btn">В меню</button>
   </div>
 </div>
 
-<div id="rotate-hint">Поверните устройство в портретный режим 📱</div>
+<div id="rotate-hint"><span data-i18n="rotate_hint">Поверните устройство в портретный режим</span> 📱</div>
 
 <script>
 (function(){
@@ -255,10 +255,120 @@
   /* ============================ CONFIG ============================ */
 
   var COLORS = ['red','blue','green','yellow','purple','orange'];
-  var COLOR_RU = {
-    red:'красных', blue:'синих', green:'зелёных',
-    yellow:'жёлтых', purple:'фиолетовых', orange:'оранжевых'
+
+  /* ============================ I18N ============================ */
+  /* Interface language is driven by the Yandex Games SDK
+     (ysdk.environment.i18n.lang) with a browser-language / Russian fallback
+     for local testing outside the platform. */
+
+  var I18N = {
+    ru: {
+      loading_text: 'Загрузка «Цветного прилива»…',
+      game_title: 'Цветной прилив',
+      subtitle: 'Собирай группы плиток от 3 штук и лови золотую волну!',
+      best_score_label: 'Лучший счёт',
+      level_label: 'Уровень',
+      play_btn: 'Играть',
+      reset_btn: 'Сбросить прогресс',
+      reset_confirm: 'Сбросить весь прогресс?',
+      level_short: 'Ур.',
+      pause_aria: 'Пауза',
+      pause_title: 'Пауза',
+      pause_sub: 'Игра остановлена',
+      resume_btn: 'Продолжить',
+      restart_btn: 'Начать уровень заново',
+      menu_btn: 'В меню',
+      win_title: 'Уровень пройден!',
+      win_score_label: 'Счёт за уровень:',
+      next_level_btn: 'Следующий уровень →',
+      lose_title: 'Ходы закончились',
+      lose_sub: 'Цель не достигнута. Попробуешь ещё раз?',
+      reward_btn: '+5 ходов за рекламу',
+      retry_btn: 'Играть снова',
+      final_title: 'Все уровни пройдены!',
+      final_best_label: 'Лучший счёт:',
+      restart_all_btn: 'Играть с начала',
+      rotate_hint: 'Поверните устройство в портретный режим',
+      goal_placeholder: 'Цель: —',
+      goal_score: 'Цель: {value} очков ({score}/{value})',
+      goal_color: 'Уберите {value} {color} плиток ({have}/{value})',
+      color_red: 'красных', color_blue: 'синих', color_green: 'зелёных',
+      color_yellow: 'жёлтых', color_purple: 'фиолетовых', color_orange: 'оранжевых',
+      rewarded_fallback_confirm: 'Реклама недоступна в локальном режиме.\nВыдать бонус +5 ходов сейчас?'
+    },
+    en: {
+      loading_text: 'Loading Color Tide…',
+      game_title: 'Color Tide',
+      subtitle: 'Clear groups of 3+ tiles and catch the golden tide!',
+      best_score_label: 'Best score',
+      level_label: 'Level',
+      play_btn: 'Play',
+      reset_btn: 'Reset progress',
+      reset_confirm: 'Reset all progress?',
+      level_short: 'Lv.',
+      pause_aria: 'Pause',
+      pause_title: 'Paused',
+      pause_sub: 'Game paused',
+      resume_btn: 'Resume',
+      restart_btn: 'Restart level',
+      menu_btn: 'Menu',
+      win_title: 'Level complete!',
+      win_score_label: 'Level score:',
+      next_level_btn: 'Next level →',
+      lose_title: 'Out of moves',
+      lose_sub: "You didn't reach the goal. Try again?",
+      reward_btn: '+5 moves for an ad',
+      retry_btn: 'Try again',
+      final_title: 'All levels complete!',
+      final_best_label: 'Best score:',
+      restart_all_btn: 'Play from start',
+      rotate_hint: 'Please rotate your device to portrait mode',
+      goal_placeholder: 'Goal: —',
+      goal_score: 'Goal: {value} points ({score}/{value})',
+      goal_color: 'Clear {value} {color} tiles ({have}/{value})',
+      color_red: 'red', color_blue: 'blue', color_green: 'green',
+      color_yellow: 'yellow', color_purple: 'purple', color_orange: 'orange',
+      rewarded_fallback_confirm: 'Ads are not available in local mode.\nGrant the +5 moves bonus now?'
+    }
   };
+
+  var LANG = 'ru';
+
+  function detectFallbackLang(){
+    var nav = ((navigator.language || navigator.userLanguage || 'ru') + '').slice(0, 2).toLowerCase();
+    return I18N[nav] ? nav : 'ru';
+  }
+
+  function detectLang(){
+    try{
+      if (ysdk && ysdk.environment && ysdk.environment.i18n && ysdk.environment.i18n.lang){
+        var l = ysdk.environment.i18n.lang;
+        if (I18N[l]) return l;
+      }
+    }catch(e){}
+    return detectFallbackLang();
+  }
+
+  function t(key, vars){
+    var dict = I18N[LANG] || I18N.ru;
+    var str = (dict[key] !== undefined) ? dict[key] : (I18N.ru[key] !== undefined ? I18N.ru[key] : key);
+    if (vars){
+      Object.keys(vars).forEach(function(k){ str = str.split('{' + k + '}').join(vars[k]); });
+    }
+    return str;
+  }
+
+  function applyI18n(){
+    document.documentElement.lang = LANG;
+    document.title = t('game_title');
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach(function(el){
+      el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+    });
+    if (state.level) updateHUD();
+  }
 
   var LEVELS = [
     { moves:25, colorCount:4, goal:{ type:'score', value:400 } },
@@ -360,7 +470,7 @@
       });
     } else {
       // Fallback for local testing / non-Yandex environments: no real ad system available.
-      var ok = window.confirm('Реклама недоступна в локальном режиме.\nВыдать бонус +5 ходов сейчас?');
+      var ok = window.confirm(t('rewarded_fallback_confirm'));
       if (ok) onReward && onReward();
       onClose && onClose();
     }
@@ -723,10 +833,10 @@
   function goalText(){
     var goal = state.level.goal;
     if (goal.type === 'score'){
-      return 'Цель: ' + goal.value + ' очков (' + state.score + '/' + goal.value + ')';
+      return t('goal_score', { value: goal.value, score: state.score });
     }
     var have = state.removedCounts[goal.color] || 0;
-    return 'Уберите ' + goal.value + ' ' + COLOR_RU[goal.color] + ' плиток (' + have + '/' + goal.value + ')';
+    return t('goal_color', { value: goal.value, color: t('color_' + goal.color), have: have });
   }
 
   function updateHUD(){
@@ -834,7 +944,7 @@
   });
 
   document.getElementById('reset-progress-btn').addEventListener('click', function(){
-    if (!window.confirm('Сбросить весь прогресс?')) return;
+    if (!window.confirm(t('reset_confirm'))) return;
     save = { level:0, bestScore:0, levelsCompleted:0 };
     saveProgress(save);
     refreshStartScreen();
@@ -906,7 +1016,11 @@
   /* ============================ BOOTSTRAP ============================ */
 
   initYandexSDK()
-    .then(loadProgress)
+    .then(function(){
+      LANG = detectLang();
+      applyI18n();
+      return loadProgress();
+    })
     .then(function(data){
       save = data;
       refreshStartScreen();
